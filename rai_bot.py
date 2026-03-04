@@ -4,8 +4,11 @@ import subprocess
 import json
 import re
 import time
+from dotenv import load_dotenv
+import os
+load_dotenv("/root/.env")
 
-TOKEN = "YOUR_TOKEN_HERE"
+TOKEN = os.getenv("TOKEN")
 VALIDATOR_ADDR = "raivaloper1e9xdemed4egexjrhu4f02cnt39qu0mjwl7eh7c"
 WALLET_ADDR = "rai1e9xdemed4egexjrhu4f02cnt39qu0mjwcte24w"
 BINARY = "/usr/local/bin/republicd"
