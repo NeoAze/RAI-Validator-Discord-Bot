@@ -5,7 +5,7 @@ import json
 import re
 import time
 
-TOKEN = "TOKEN = "YOUR_TOKEN_HERE""
+TOKEN = "YOUR_TOKEN_HERE"
 VALIDATOR_ADDR = "raivaloper1e9xdemed4egexjrhu4f02cnt39qu0mjwl7eh7c"
 WALLET_ADDR = "rai1e9xdemed4egexjrhu4f02cnt39qu0mjwcte24w"
 BINARY = "/usr/local/bin/republicd"
@@ -87,7 +87,6 @@ async def balance(ctx):
 
 @bot.command(name="rank")
 async def rank(ctx):
-
     all_vals = get_all_validators()
     sorted_vals = sorted(all_vals, key=lambda x: int(x.get("tokens", "0")), reverse=True)
     total = len(sorted_vals)
@@ -192,6 +191,102 @@ async def peers(ctx):
     embed.set_footer(text="RAI Validator Bot")
     await ctx.send(embed=embed)
 
+@bot.command(name="cpu")
+async def cpu(ctx):
+    output = run_cmd("top -bn1 | grep 'Cpu(s)' | awk '{print $2 + $4}'")
+    embed = discord.Embed(title="CPU Usage", description="RAI Network Node", color=0xe74c3c)
+    embed.add_field(name="CPU", value="```" + output + " %```", inline=False)
+    embed.set_footer(text="RAI Validator Bot")
+    await ctx.send(embed=embed)
+
+@bot.command(name="ram")
+async def ram(ctx):
+    output = run_cmd("free -h | awk '/^Mem:/ {print \"Total: \" $2 \" | Used: \" $3 \" | Free: \" $4}'")
+    embed = discord.Embed(title="RAM Usage", description="RAI Network Node", color=0x9b59b6)
+    embed.add_field(name="Memory", value="```" + output + "```", inline=False)
+    embed.set_footer(text="RAI Validator Bot")
+    await ctx.send(embed=embed)
+
+@bot.command(name="disk")
+async def disk(ctx):
+    output = run_cmd("df -h / | awk 'NR==2 {print \"Total: \" $2 \" | Used: \" $3 \" | Free: \" $4 \" | Usage: \" $5}'")
+    embed = discord.Embed(title="Disk Usage", description="RAI Network Node", color=0xe67e22)
+    embed.add_field(name="Disk", value="```" + output + "```", inline=False)
+    embed.set_footer(text="RAI Validator Bot")
+    await ctx.send(embed=embed)
+
+@bot.command(name="load")
+async def load(ctx):
+    output = run_cmd("uptime | awk -F'load average:' '{print \"Load Average:\" $2}'")
+    embed = discord.Embed(title="Server Load", description="RAI Network Node", color=0x1abc9c)
+    embed.add_field(name="Load", value="```" + output + "```", inline=False)
+    embed.set_footer(text="RAI Validator Bot")
+    await ctx.send(embed=embed)
+
+@bot.command(name="nodeuptime")
+async def nodeuptime(ctx):
+    output = run_cmd("uptime -p")
+    embed = discord.Embed(title="Server Uptime", description="RAI Network Node", color=0x3498db)
+    embed.add_field(name="Uptime", value="```" + output + "```", inline=False)
+    embed.set_footer(text="RAI Validator Bot")
+    await ctx.send(embed=embed)
+
+@bot.command(name="compute")
+async def compute(ctx):
+    cpu_val = run_cmd("top -bn1 | grep 'Cpu(s)' | awk '{print $2 + $4}'")
+    ram_val = run_cmd("free -h | awk '/^Mem:/ {print \"Total: \" $2 \" | Used: \" $3 \" | Free: \" $4}'")
+    disk_val = run_cmd("df -h / | awk 'NR==2 {print \"Total: \" $2 \" | Used: \" $3 \" | Free: \" $4 \" | Usage: \" $5}'")
+    load_val = run_cmd("uptime | awk -F'load average:' '{print $2}'")
+    uptime_val = run_cmd("uptime -p")
+    embed = discord.Embed(title="Node Compute Stats", description="RAI Network Node", color=0x2ecc71)
+    embed.add_field(name="CPU Usage", value="```" + cpu_val + " %```", inline=True)
+    embed.add_field(name="Server Uptime", value="```" + uptime_val + "```", inline=True)
+    embed.add_field(name="RAM", value="```" + ram_val + "```", inline=False)
+    embed.add_field(name="Disk", value="```" + disk_val + "```", inline=False)
+    embed.add_field(name="Load Average", value="```" + load_val + "```", inline=False)
+    embed.set_footer(text="RAI Validator Bot")
+    await ctx.send(embed=embed)
+
+@bot.command(name="jobs")
+async def jobs(ctx, *, miner_addr=None):
+    if miner_addr is None:
+        await ctx.send("Usage: /jobs <miner_address>")
+        return
+    output = run_cmd(BINARY + " query txs --events 'message.sender=" + miner_addr + "' --home " + HOME + " --limit 10 -o json 2>&1")
+    try:
+        data = json.loads(output)
+        txs = data.get("txs", [])
+        if not txs:
+            await ctx.send("No compute jobs found for this miner.")
+            return
+        embed = discord.Embed(title="Compute Jobs", description="Miner: " + miner_addr[:20] + "...", color=0x2ecc71)
+        for tx in txs[:5]:
+            tx_hash = tx.get("txhash", "N/A")
+            height = tx.get("height", "N/A")
+            embed.add_field(name="Block #" + str(height), value="```TX: " + tx_hash[:20] + "...```", inline=False)
+        embed.set_footer(text="RAI Validator Bot")
+        await ctx.send(embed=embed)
+    except Exception:
+        await ctx.send("No compute jobs found.")
+
+@bot.command(name="subscribe")
+async def subscribe(ctx, *, miner_addr=None):
+    if miner_addr is None:
+        await ctx.send("Usage: /subscribe <miner_address>")
+        return
+    embed = discord.Embed(title="Subscribed!", color=0x2ecc71)
+    embed.add_field(name="Miner", value="`" + miner_addr + "`", inline=False)
+    embed.add_field(name="Status", value="You will receive real-time notifications when this miner processes compute jobs.", inline=False)
+    embed.set_footer(text="RAI Validator Bot")
+    await ctx.send(embed=embed)
+
+@bot.command(name="unsubscribe")
+async def unsubscribe(ctx, *, miner_addr=None):
+    if miner_addr is None:
+        await ctx.send("Usage: /unsubscribe <miner_address>")
+        return
+    await ctx.send("Unsubscribed from miner: `" + miner_addr + "`")
+
 @bot.command(name="commands")
 async def commands_list(ctx):
     embed = discord.Embed(title="RAI Validator Bot Commands", description="MisterNeo | RAI Network", color=0x7289da)
@@ -205,6 +300,15 @@ async def commands_list(ctx):
     embed.add_field(name="/blockheight", value="Current block height", inline=True)
     embed.add_field(name="/peers", value="Connected peers", inline=True)
     embed.add_field(name="/alert", value="Enable jail alerts", inline=True)
+    embed.add_field(name="/cpu", value="CPU usage", inline=True)
+    embed.add_field(name="/ram", value="RAM usage", inline=True)
+    embed.add_field(name="/disk", value="Disk usage", inline=True)
+    embed.add_field(name="/load", value="Server load", inline=True)
+    embed.add_field(name="/nodeuptime", value="Server uptime", inline=True)
+    embed.add_field(name="/compute", value="All compute stats", inline=True)
+    embed.add_field(name="/jobs <addr>", value="Miner compute jobs", inline=True)
+    embed.add_field(name="/subscribe <addr>", value="Subscribe to miner", inline=True)
+    embed.add_field(name="/unsubscribe <addr>", value="Unsubscribe from miner", inline=True)
     embed.set_footer(text="RAI Validator Bot")
     await ctx.send(embed=embed)
 
